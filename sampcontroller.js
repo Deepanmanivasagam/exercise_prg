@@ -92,6 +92,35 @@ router.get('/get',async(req,res)=>{
     }
 })
 
+
+
+router.put('/update/:id',async(req, res)=>{
+    try {
+        const {id} = req.params;
+        const {playerName,age,currentTeam,teams,strikeRate,runs,matches} = req.body;
+        const average = runs / matches;
+        let performance;
+
+        if(average < 25){
+            performance = 'below average';
+        }else if(average >= 25 && average <= 30){
+            performance = 'average';
+        }else if(average > 30 && average < 40){
+            performance = 'excellent';
+        }else{
+            performance = 'masterful';
+        }
+
+        const updatedPlayer = await Player.findByIdAndUpdate(
+            id,{playerName,age,currentTeam,teams,strikeRate,runs,matches,average,performance},{new:true}
+        );
+        res.status(200).json({ message: 'Player updated successfully', result: updatedPlayer });
+    }catch(error){
+        res.status(400).json({ message: error.message });
+    }
+});
+
+
 router.get('/getter',async(req,res)=>{
     try{
     let {page,limit}= req.query;
@@ -104,7 +133,7 @@ router.get('/getter',async(req,res)=>{
    res.status(200).json({
     result:limited,
     currentpage:page,
-    totalpages:totalplayers/limit
+    totalpages:Math.ceil(totalplayers/limit)
 })
 }catch(error){
     res.status(400).json({message:error.message});
@@ -165,6 +194,30 @@ router.get('/deleted',async(req,res)=>{
         res.status(400).json({message:error.message});
     }
 })
+
+
+router.get('/best', async (req, res) => {
+    try {
+        const stats = await Player.aggregate([
+            {
+                $group:{
+                    _id: '$performance',
+                    totalPlayers:{$sum:1},
+                    averageRuns:{$avg:'$runs'}, 
+                    averageMatches:{$avg:'$matches'},
+                    totalRuns:{$sum:'$runs'},
+                    playerNames:{$push:'$playerName'} 
+                }
+            },
+            {$sort:{totalPlayers:-1}}
+        ]);
+
+        res.status(200).json({message:'Statistics retrieved successfully',result:stats});
+    }catch(error){
+        res.status(400).json({message:error.message});
+    }
+});
+
 
 router.post('/filter', async (req, res) => {
     try {
